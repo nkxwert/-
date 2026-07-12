@@ -2,55 +2,55 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>선형계획법 시각화</title>
+    <title>선형계획법 최적화 시연</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Pretendard', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .controls { margin-top: 20px; text-align: center; }
-        canvas { max-width: 600px; }
+        body { font-family: 'Pretendard', sans-serif; display: flex; flex-direction: column; align-items: center; background: #f8f9fa; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #status { font-weight: bold; color: #003366; font-size: 1.2em; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <h2>컴퓨터(x)와 스마트폰(y) 생산 최적화</h2>
-    <canvas id="lpChart"></canvas>
-    
-    <div class="controls">
-        <label>총 이익 (Z) 조절: </label>
-        <input type="range" id="zSlider" min="0" max="300" value="0" style="width: 300px;">
-        <p>현재 Z = <span id="zVal">0</span> (단위: 10만원)</p>
-        <p>목적 함수: y = -1.5x + (Z/2)</p>
+    <div class="container">
+        <h2>컴퓨터(x)와 스마트폰(y) 생산 최적화</h2>
+        <div id="status">Z(이익)를 움직여보세요!</div>
+        <canvas id="lpChart" width="500" height="400"></canvas>
+        <input type="range" id="zSlider" min="0" max="200" value="0" style="width: 100%; cursor: pointer;">
     </div>
 
     <script>
         const ctx = document.getElementById('lpChart').getContext('2d');
-        let z = 0;
-
-        const data = {
-            datasets: [
-                { label: '제약조건 1: 2x + y <= 100', data: [{x:0, y:100}, {x:50, y:0}], type: 'line', borderColor: 'blue', fill: false },
-                { label: '제약조건 2: x + 2y <= 80', data: [{x:0, y:40}, {x:80, y:0}], type: 'line', borderColor: 'red', fill: false },
-                { label: '목적 함수: 3x + 2y = Z', data: [{x:0, y:0}, {x:0, y:0}], type: 'line', borderColor: 'green', borderWidth: 3, borderDash: [5, 5] }
-            ]
-        };
-
+        const status = document.getElementById('status');
+        
         const chart = new Chart(ctx, {
             type: 'scatter',
-            data: data,
-            options: {
-                scales: { x: { min: 0, max: 100 }, y: { min: 0, max: 100 } },
-                plugins: { legend: { position: 'bottom' } }
-            }
+            data: {
+                datasets: [
+                    { label: '제약 1: 2x + y = 100', data: [{x:0, y:100}, {x:50, y:0}], type: 'line', borderColor: 'blue', fill: false },
+                    { label: '제약 2: x + 2y = 80', data: [{x:0, y:40}, {x:80, y:0}], type: 'line', borderColor: 'red', fill: false },
+                    { label: '목적 함수: 3x + 2y = Z', data: [{x:0, y:0}, {x:0, y:0}], type: 'line', borderColor: '#11caa0', borderWidth: 4 }
+                ]
+            },
+            options: { scales: { x: { min: 0, max: 80 }, y: { min: 0, max: 100 } } }
         });
 
         document.getElementById('zSlider').addEventListener('input', (e) => {
-            z = e.target.value;
-            document.getElementById('zVal').innerText = z;
+            const z = e.target.value;
+            // 목적 함수: y = -1.5x + (z/2)
+            const x1 = 0, y1 = z / 2;
+            const x2 = z / 3, y2 = 0;
             
-            // 목적 함수 직선 계산 (y = -1.5x + z/2)
-            const yIntercept = z / 2;
-            const xIntercept = z / 3;
-            chart.data.datasets[2].data = [{x: 0, y: yIntercept}, {x: xIntercept, y: 0}];
-            chart.update();
+            chart.data.datasets[2].data = [{x: x1, y: y1}, {x: x2, y: y2}];
+            chart.update('none'); // 부드러운 업데이트
+
+            // 최적점(40, 20) 도달 판정 (Z = 3*40 + 2*20 = 160)
+            if (z >= 158 && z <= 162) {
+                status.innerText = "최적점 도달! (컴퓨터 40대, 스마트폰 20대 생산 시 최대 이익 Z=160)";
+                status.style.color = "#ff4500";
+            } else {
+                status.innerText = "Z = " + z + " (이익 증가 중...)";
+                status.style.color = "#003366";
+            }
         });
     </script>
 </body>
