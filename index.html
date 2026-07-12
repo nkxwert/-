@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>선형계획법 시각화</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Pretendard', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .controls { margin-top: 20px; text-align: center; }
+        canvas { max-width: 600px; }
+    </style>
+</head>
+<body>
+    <h2>컴퓨터(x)와 스마트폰(y) 생산 최적화</h2>
+    <canvas id="lpChart"></canvas>
+    
+    <div class="controls">
+        <label>총 이익 (Z) 조절: </label>
+        <input type="range" id="zSlider" min="0" max="300" value="0" style="width: 300px;">
+        <p>현재 Z = <span id="zVal">0</span> (단위: 10만원)</p>
+        <p>목적 함수: y = -1.5x + (Z/2)</p>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('lpChart').getContext('2d');
+        let z = 0;
+
+        const data = {
+            datasets: [
+                { label: '제약조건 1: 2x + y <= 100', data: [{x:0, y:100}, {x:50, y:0}], type: 'line', borderColor: 'blue', fill: false },
+                { label: '제약조건 2: x + 2y <= 80', data: [{x:0, y:40}, {x:80, y:0}], type: 'line', borderColor: 'red', fill: false },
+                { label: '목적 함수: 3x + 2y = Z', data: [{x:0, y:0}, {x:0, y:0}], type: 'line', borderColor: 'green', borderWidth: 3, borderDash: [5, 5] }
+            ]
+        };
+
+        const chart = new Chart(ctx, {
+            type: 'scatter',
+            data: data,
+            options: {
+                scales: { x: { min: 0, max: 100 }, y: { min: 0, max: 100 } },
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        document.getElementById('zSlider').addEventListener('input', (e) => {
+            z = e.target.value;
+            document.getElementById('zVal').innerText = z;
+            
+            // 목적 함수 직선 계산 (y = -1.5x + z/2)
+            const yIntercept = z / 2;
+            const xIntercept = z / 3;
+            chart.data.datasets[2].data = [{x: 0, y: yIntercept}, {x: xIntercept, y: 0}];
+            chart.update();
+        });
+    </script>
+</body>
+</html>
