@@ -2,12 +2,68 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>선형계획법 최적화 시연</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <!-- Pretendard 폰트를 실제로 불러오도록 추가 (기존엔 font-family만 지정돼 있고 로드가 안 돼서 적용이 안 되고 있었음) -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
     <style>
-        body { font-family: 'Pretendard', sans-serif; display: flex; flex-direction: column; align-items: center; background: #f8f9fa; }
-        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #status { font-weight: bold; color: #003366; font-size: 1.2em; margin-bottom: 10px; }
+        body {
+            font-family: 'Pretendard', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f8f9fa;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            /* 페이지 진입 시 살짝 떠오르는 모션 */
+            animation: fadeInUp 0.6s ease-out;
+            /* 최적점 도달 시 은은하게 빛나는 효과용 (레이아웃에는 영향 없음) */
+            transition: box-shadow 0.4s ease;
+        }
+
+        .container.is-optimal {
+            box-shadow: 0 4px 15px rgba(255,69,0,0.35), 0 0 0 3px rgba(255,69,0,0.15);
+        }
+
+        #status {
+            font-weight: bold;
+            color: #003366;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            /* 글자 색만 부드럽게 전환되고, font-size는 절대 안 건드림 */
+            transition: color 0.3s ease;
+            line-height: 1.5;
+            /* 짧은 문구 ↔ 긴 문구("최적점 도달! ...")를 오가도
+               높이가 미리 확보돼 있어서 화면이 덜컹거리지 않음 */
+            min-height: 3em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 모션 어지러움을 느끼는 사용자를 위한 배려 (접근성) */
+        @media (prefers-reduced-motion: reduce) {
+            .container { animation: none; }
+            #status, .container { transition: none; }
+        }
     </style>
 </head>
 <body>
@@ -15,23 +71,39 @@
         <h2>컴퓨터(x)와 스마트폰(y) 생산 최적화</h2>
         <div id="status">Z(이익)를 움직여보세요!</div>
         <canvas id="lpChart" width="500" height="400"></canvas>
-        <input type="range" id="zSlider" min="0" max="200" value="0" style="width: 100%; cursor: pointer;">
+        <input type="range" id="zSlider" min="0" max="200" value="0"
+               aria-label="목표 이익 Z 값 조절">
     </div>
-
     <script>
         const ctx = document.getElementById('lpChart').getContext('2d');
         const status = document.getElementById('status');
-        
+        const container = document.querySelector('.container');
+
         const chart = new Chart(ctx, {
             type: 'scatter',
             data: {
                 datasets: [
                     { label: '제약 1: 2x + y = 100', data: [{x:0, y:100}, {x:50, y:0}], type: 'line', borderColor: 'blue', fill: false },
                     { label: '제약 2: x + 2y = 80', data: [{x:0, y:40}, {x:80, y:0}], type: 'line', borderColor: 'red', fill: false },
-                    { label: '목적 함수: 3x + 2y = Z', data: [{x:0, y:0}, {x:0, y:0}], type: 'line', borderColor: '#11caa0', borderWidth: 4 }
+                    { label: '목적 함수: 3x + 2y = Z', data: [{x:0, y:0}, {x:0, y:0}], type: 'line', borderColor: '#11caa0', borderWidth: 4 },
+                    // 최적점(40,20)을 표시하는 점. 평소엔 반지름 0으로 숨겨두고
+                    // 최적 구간에 들어오면 스르륵 커지며 나타남 (레전드엔 노출 안 함)
+                    { label: '최적점', data: [{x:40, y:20}], type: 'scatter', showLine: false,
+                      pointRadius: 0, pointHoverRadius: 0, backgroundColor: '#ff4500', borderColor: '#fff', borderWidth: 2 }
                 ]
             },
-            options: { scales: { x: { min: 0, max: 80 }, y: { min: 0, max: 100 } } }
+            options: {
+                scales: { x: { min: 0, max: 80 }, y: { min: 0, max: 100 } },
+                animation: { duration: 250, easing: 'easeOutQuad' },
+                plugins: {
+                    legend: {
+                        labels: {
+                            // 최적점 데이터셋은 범례에서는 숨겨서 기존 디자인 그대로 유지
+                            filter: (item) => item.text !== '최적점'
+                        }
+                    }
+                }
+            }
         });
 
         document.getElementById('zSlider').addEventListener('input', (e) => {
@@ -39,17 +111,25 @@
             // 목적 함수: y = -1.5x + (z/2)
             const x1 = 0, y1 = z / 2;
             const x2 = z / 3, y2 = 0;
-            
+
             chart.data.datasets[2].data = [{x: x1, y: y1}, {x: x2, y: y2}];
-            chart.update('none'); // 부드러운 업데이트
 
             // 최적점(40, 20) 도달 판정 (Z = 3*40 + 2*20 = 160)
-            if (z >= 158 && z <= 162) {
+            const isOptimal = (z >= 158 && z <= 162);
+            chart.data.datasets[3].pointRadius = isOptimal ? 9 : 0;
+
+            // mode를 'none'에서 기본값으로 바꿔서 목적함수 선이 스냅되지 않고
+            // 부드럽게 이어지듯 움직이도록 함
+            chart.update();
+
+            if (isOptimal) {
                 status.innerText = "최적점 도달! (컴퓨터 40대, 스마트폰 20대 생산 시 최대 이익 Z=160)";
                 status.style.color = "#ff4500";
+                container.classList.add('is-optimal');
             } else {
                 status.innerText = "Z = " + z + " (이익 증가 중...)";
                 status.style.color = "#003366";
+                container.classList.remove('is-optimal');
             }
         });
     </script>
